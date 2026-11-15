@@ -25,12 +25,17 @@
     const rest = seen || matchMedia("(prefers-reduced-motion: reduce)").matches;
     document.documentElement.dataset.film = rest ? "rest" : "play";
   })();
-  // The film ends on the logo and "Weekfold", centred. Download sits just under that word, wherever the frame lands.
+  // The film ends on the logo and "Weekfold"; the plain card (an SVG in the film's 1280×720 coordinates) dissolves in on top,
+  // matched to the frame on wide screens, a readable size on tall ones. Download sits just under the word.
   window.placeCTA = () => {
-    const w = innerWidth, h = innerHeight;
-    const s = Math.max(w / 1280, h / 720);                    // the resting frame always fills the screen (cover)
-    const y = h / 2 + 110 * s + Math.max(20, 28 * s);         // 110 = the word's baseline below the frame's centre, in film pixels
+    const w = innerWidth, h = innerHeight, tall = w / h <= 1;
+    // Wide: the film's own frame, cover. Tall: centred on the logo, sized to fit 400×330 film px, never above 1.2×.
+    const s = tall ? Math.min(w / 400, h / 330, 1.2) : Math.max(w / 1280, h / 720);
+    const vb = tall ? [640 - w / s / 2, 365 - h / s / 2, w / s, h / s] : [0, 0, 1280, 720];
+    const y = h / 2 + (470 - (vb[1] + vb[3] / 2)) * s + Math.max(20, 28 * s);   // 470 = the word's baseline in the film
     document.documentElement.style.setProperty("--cta-y", Math.round(y) + "px");
+    const card = document.querySelector(".card");
+    if (card) { card.setAttribute("viewBox", vb.map(n => n.toFixed(1)).join(" ")); card.setAttribute("preserveAspectRatio", tall ? "xMidYMid meet" : "xMidYMid slice"); }
   };
   placeCTA();
 </script>
@@ -43,7 +48,7 @@
   :root {
     --ink: #2b2620;
     --ink-2: #5d554b;
-    --felt: #ded6c2;                                /* the film's last frame, so the page and the frame meet without an edge */
+    --plain: #f1e9dc;                               /* the card the film settles into */
     --paper: rgb(247 242 232 / 0.84);
     --paper-solid: #f7f2e8;
     --line: rgb(43 38 32 / 0.12);
@@ -54,7 +59,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
-    background: var(--felt);
+    background: var(--plain);
     color: var(--ink);
     font-family: var(--font);
     -webkit-font-smoothing: antialiased;
@@ -65,24 +70,25 @@
     position: fixed; inset: 0;
     width: 100%; height: 100%;
     object-fit: cover;
-    background: var(--felt) center / cover no-repeat;
+    background: var(--plain) center / cover no-repeat;
     pointer-events: none;
     user-select: none;
   }
   [data-film="play"] .film { background-image: url("media/start.jpg"); }
   [data-film="rest"] .film { background-image: url("media/end.jpg"); }
-  /* Tall screens: show the whole film rather than crop the figure away; when it rests,
-     cross-fade to the last frame filling the screen, so the felt meets every edge and the logo is a readable size. */
-  .endcard { display: none; }
+  /* Tall screens: show the whole film rather than crop the figure away. */
   @media (max-aspect-ratio: 1/1) {
     .film { object-fit: contain; background-image: none !important; }
-    .endcard {
-      display: block; position: fixed; inset: 0; width: 100%; height: 100%;
-      object-fit: cover; pointer-events: none; user-select: none;
-      opacity: 0; transition: opacity 500ms var(--ease-out);
-    }
-    [data-film="rest"] .endcard { opacity: 1; }
   }
+
+  /* The film ends on felt; after a beat the same logo and word dissolve onto plain paper. */
+  .card {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; user-select: none;
+    opacity: 0; visibility: hidden;
+    transition: opacity 300ms ease, visibility 0s linear 300ms;
+  }
+  [data-film="rest"] .card { opacity: 1; visibility: visible; transition: opacity 900ms ease 500ms; }
 
   .pill {
     display: inline-flex; align-items: center; justify-content: center;
@@ -126,14 +132,14 @@
   }
   [data-film="rest"] .cta {
     opacity: 1; visibility: visible; translate: 0 0;
-    transition: opacity 400ms var(--ease-out) 150ms, translate 400ms var(--ease-out) 150ms, background-color 150ms ease, scale 150ms ease-out;
+    transition: opacity 400ms var(--ease-out) 1100ms, translate 400ms var(--ease-out) 1100ms, background-color 150ms ease, scale 150ms ease-out;
   }
   [data-film="play"] header > * {
     transition: opacity 300ms var(--ease-out), translate 300ms var(--ease-out), background-color 150ms ease, scale 150ms ease-out;
   }
   .button:active, .cta:active, .replay:active { scale: 0.96; }
 
-  .replay {
+  .replay, .sound {
     position: fixed;
     right: max(20px, env(safe-area-inset-right));
     bottom: max(20px, env(safe-area-inset-bottom));
@@ -148,6 +154,13 @@
     opacity: 0; visibility: hidden;
     transition: opacity 200ms ease, scale 150ms ease-out, visibility 0s linear 200ms;
   }
+  .sound { opacity: 1; visibility: visible; transition: translate 200ms var(--ease-out), scale 150ms ease-out; }
+  body:has(.replay.shown) .sound { translate: -56px 0; }         /* makes room for replay once the film rests */
+  .sound .on, .sound[aria-pressed="true"] .off { display: none; }
+  .sound[aria-pressed="true"] .on { display: block; }
+  .sound:active { scale: 0.96; }
+  .sound:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .sound svg { width: 18px; height: 18px; }
   .replay.shown { opacity: 1; visibility: visible; transition: opacity 200ms ease, scale 150ms ease-out; }
   .replay:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .replay svg { width: 18px; height: 18px; translate: 0.5px 0; }
@@ -176,9 +189,9 @@
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   @media (prefers-reduced-motion: reduce) {
-    header > *, .cta, [data-film] header > *, [data-film="rest"] .cta, .replay, .replay.shown, dialog .pill, .endcard { transition: none; }
+    header > *, .cta, [data-film] header > *, [data-film="rest"] .cta, .replay, .replay.shown, .sound, dialog .pill, .card, [data-film="rest"] .card { transition: none; }
     [data-film="rest"] header > *, .cta { translate: none; }
-    .button:active, .cta:active, .replay:active, dialog .pill:active { scale: 1; }
+    .button:active, .cta:active, .replay:active, .sound:active, dialog .pill:active { scale: 1; }
     dialog[open], dialog[open]::backdrop { animation: none; }
   }
 </style>
@@ -189,7 +202,11 @@
     <source src="media/week.mp4" type="video/mp4">
   </video>
 
-  <img class="endcard" src="media/end.jpg" alt="" aria-hidden="true">
+  <svg class="card" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <rect x="-10000" y="-10000" width="21280" height="20720" fill="#f1e9dc"/>
+    <image href="media/icon-512.png" x="553.85" y="224.2" width="172.3" height="172.3"/>
+    <text x="640" y="470" text-anchor="middle" font-family="'Weekfold WenKai', 'Kaiti SC', serif" font-weight="500" font-size="61.3" fill="#2b2620">Weekfold</text>
+  </svg>
 
   <header>
     <a class="pill mark" href="./"><img src="media/icon.png" alt="" width="28" height="28">Weekfold</a>
@@ -200,6 +217,10 @@
 
   <button class="pill cta download" type="button" data-i18n="download">Download</button>
 
+  <button class="sound" id="sound" type="button" aria-pressed="false" aria-label="Sound" data-i18n-label="sound">
+    <svg class="off" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8v4h3l4 3.5v-11l-4 3.5z"/><path d="M14 8l4 4M18 8l-4 4"/></svg>
+    <svg class="on" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8v4h3l4 3.5v-11l-4 3.5z"/><path d="M13.5 7.5a3.5 3.5 0 0 1 0 5M15.8 5.5a6.5 6.5 0 0 1 0 9"/></svg>
+  </button>
   <button class="replay" id="replay" type="button" aria-label="Play again" data-i18n-label="replay">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10a6.5 6.5 0 1 0 2-4.7"/><path d="M3.5 3.5v3.2h3.2"/></svg>
   </button>
@@ -217,6 +238,7 @@
       download: "下载",
       tagline: "Weekfold：Mac 上一个安静的每周回顾 app。",
       replay: "再看一遍",
+      sound: "声音",
       soonTitle: "12 月见",
       soonBody: "Weekfold for Mac 正在小范围内测，公开版本计划在 12 月发布。",
       ok: "好",
@@ -229,6 +251,7 @@
   const root = document.documentElement;
   const film = document.getElementById("film");
   const replay = document.getElementById("replay");
+  placeCTA();
   addEventListener("resize", placeCTA);
 
   // The film plays once and rests on its last frame; a loop would unfold the week again.
@@ -238,11 +261,21 @@
     replay.classList.add("shown");
   }
   film.addEventListener("ended", rest);
-  replay.addEventListener("click", () => {
+  function playFromStart() {
     replay.classList.remove("shown");
     root.dataset.film = "play";
     film.currentTime = 0;
     film.play().catch(rest);
+  }
+  replay.addEventListener("click", playFromStart);
+
+  // The film starts muted (browsers only autoplay silent video). Turning sound on while it rests plays it again from the start.
+  const sound = document.getElementById("sound");
+  sound.addEventListener("click", () => {
+    const on = sound.getAttribute("aria-pressed") !== "true";
+    sound.setAttribute("aria-pressed", String(on));
+    film.muted = !on;
+    if (on && root.dataset.film === "rest") playFromStart();
   });
 
   if (root.dataset.film === "rest") {
