@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Weekfold</title>
 <meta name="description" content="A quiet weekly reflection app for the Mac. Gather your week, look at it, and fold it. Everything stays on your Mac.">
-<meta name="theme-color" content="#e9dfcf">
+<meta name="theme-color" content="#ded6c2">
 <meta property="og:title" content="Weekfold">
 <meta property="og:description" content="A quiet weekly reflection app for the Mac. Everything stays on your Mac.">
 <meta property="og:type" content="website">
@@ -16,6 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="media/apple-touch-icon.png">
+<link rel="preload" href="fonts/wenkai-medium-subset.woff2" as="font" type="font/woff2" crossorigin>
 <script>
   // Decided before first paint: play the film, or rest on its last frame (seen this session, or Reduce Motion).
   (() => {
@@ -24,21 +25,36 @@
     const rest = seen || matchMedia("(prefers-reduced-motion: reduce)").matches;
     document.documentElement.dataset.film = rest ? "rest" : "play";
   })();
+  // The film ends on the logo and "Weekfold", centred. Download sits just under that word, wherever the frame lands.
+  window.placeCTA = () => {
+    const w = innerWidth, h = innerHeight;
+    const s = Math.max(w / 1280, h / 720);                    // the resting frame always fills the screen (cover)
+    const y = h / 2 + 110 * s + Math.max(20, 28 * s);         // 110 = the word's baseline below the frame's centre, in film pixels
+    document.documentElement.style.setProperty("--cta-y", Math.round(y) + "px");
+  };
+  placeCTA();
 </script>
 <style>
+  @font-face {
+    font-family: "Weekfold WenKai";
+    src: url("fonts/wenkai-medium-subset.woff2") format("woff2");
+    font-weight: 500; font-display: swap;
+  }
   :root {
     --ink: #2b2620;
     --ink-2: #5d554b;
-    --paper: rgb(251 247 240 / 0.86);
-    --paper-solid: #fbf7f0;
+    --felt: #ded6c2;                                /* the film's last frame, so the page and the frame meet without an edge */
+    --paper: rgb(247 242 232 / 0.84);
+    --paper-solid: #f7f2e8;
     --line: rgb(43 38 32 / 0.12);
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", sans-serif;
+    --brand: "Weekfold WenKai", "Kaiti SC", "STKaiti", var(--font);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
-    background: #e9dfcf;
+    background: var(--felt);
     color: var(--ink);
     font-family: var(--font);
     -webkit-font-smoothing: antialiased;
@@ -49,16 +65,39 @@
     position: fixed; inset: 0;
     width: 100%; height: 100%;
     object-fit: cover;
-    background: #e9dfcf center / cover no-repeat;
+    background: var(--felt) center / cover no-repeat;
     pointer-events: none;
     user-select: none;
   }
   [data-film="play"] .film { background-image: url("media/start.jpg"); }
   [data-film="rest"] .film { background-image: url("media/end.jpg"); }
-  /* Tall screens: the week spans the whole frame, so show all of it on paper rather than crop the figure away. */
+  /* Tall screens: show the whole film rather than crop the figure away; when it rests,
+     cross-fade to the last frame filling the screen, so the felt meets every edge and the logo is a readable size. */
+  .endcard { display: none; }
   @media (max-aspect-ratio: 1/1) {
     .film { object-fit: contain; background-image: none !important; }
+    .endcard {
+      display: block; position: fixed; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; pointer-events: none; user-select: none;
+      opacity: 0; transition: opacity 500ms var(--ease-out);
+    }
+    [data-film="rest"] .endcard { opacity: 1; }
   }
+
+  .pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    appearance: none; border: 0; cursor: pointer;
+    font: 500 15px/1 var(--brand);
+    color: var(--ink); text-decoration: none;
+    background: var(--paper);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    box-shadow: 0 0 0 0.5px var(--line), 0 1px 2px rgb(43 38 32 / 0.08);
+    border-radius: 999px;
+    min-height: 40px;
+  }
+  @media (pointer: coarse) { .pill { min-height: 44px; } }
+  @media (hover: hover) and (pointer: fine) { .pill:hover { background: var(--paper-solid); } }
+  .pill:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
   header {
     position: fixed;
@@ -68,38 +107,31 @@
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px;
   }
-  .mark {
-    display: flex; align-items: center; gap: 10px;
-    color: var(--ink); text-decoration: none;
-    font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
-    min-height: 40px; padding: 6px 16px 6px 6px;
-    background: var(--paper);
-    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-    box-shadow: 0 0 0 0.5px var(--line), 0 1px 2px rgb(43 38 32 / 0.08);
-    border-radius: 999px;
-  }
-  .mark { transition: background-color 150ms ease; }
-  @media (hover: hover) and (pointer: fine) { .mark:hover { background: var(--paper-solid); } }
-  .mark:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .mark { gap: 10px; font-size: 17px; padding: 6px 16px 6px 6px; }
   .mark img { width: 28px; height: 28px; border-radius: 999px; display: block; }
+  .button { padding: 0 18px; }
 
-  .button {
-    appearance: none; border: 0; cursor: pointer;
-    font: inherit; font-size: 14px; font-weight: 500;
-    color: var(--ink);
-    background: var(--paper);
-    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-    box-shadow: 0 0 0 0.5px var(--line), 0 1px 2px rgb(43 38 32 / 0.08);
-    border-radius: 999px;
-    min-height: 40px; padding: 0 18px;
-    transition: scale 150ms ease-out, background-color 150ms ease;
+  /* Header while the film plays; once it rests on its own logo and word, the header steps back
+     and Download moves under the word, so the page ends on one logo and one action. */
+  header > *, .cta {
+    transition: opacity 300ms var(--ease-out), translate 300ms var(--ease-out), visibility 0s linear 300ms,
+                background-color 150ms ease, scale 150ms ease-out;
   }
-  .button:active { scale: 0.96; }
-  @media (hover: hover) and (pointer: fine) {
-    .button:hover { background: var(--paper-solid); }
+  [data-film="rest"] header > * { opacity: 0; visibility: hidden; translate: 0 -4px; }
+  .cta {
+    position: fixed; left: 50%; top: var(--cta-y, 70%);
+    transform: translateX(-50%);
+    padding: 0 22px;
+    opacity: 0; visibility: hidden; translate: 0 6px;
   }
-  .button:focus-visible, .replay:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-  @media (pointer: coarse) { .button, .mark { min-height: 44px; } }
+  [data-film="rest"] .cta {
+    opacity: 1; visibility: visible; translate: 0 0;
+    transition: opacity 400ms var(--ease-out) 150ms, translate 400ms var(--ease-out) 150ms, background-color 150ms ease, scale 150ms ease-out;
+  }
+  [data-film="play"] header > * {
+    transition: opacity 300ms var(--ease-out), translate 300ms var(--ease-out), background-color 150ms ease, scale 150ms ease-out;
+  }
+  .button:active, .cta:active, .replay:active { scale: 0.96; }
 
   .replay {
     position: fixed;
@@ -116,8 +148,8 @@
     opacity: 0; visibility: hidden;
     transition: opacity 200ms ease, scale 150ms ease-out, visibility 0s linear 200ms;
   }
-  .replay:active { scale: 0.96; }
   .replay.shown { opacity: 1; visibility: visible; transition: opacity 200ms ease, scale 150ms ease-out; }
+  .replay:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .replay svg { width: 18px; height: 18px; translate: 0.5px 0; }
 
   dialog {
@@ -134,17 +166,19 @@
   dialog[open]::backdrop { animation: fade 200ms var(--ease-out); }
   @keyframes open { from { opacity: 0; transform: scale(0.96); } }
   @keyframes fade { from { opacity: 0; } }
-  dialog h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+  dialog h2 { margin: 0 0 8px; font: 500 20px/1.3 var(--brand); text-wrap: balance; }
   dialog p { margin: 0 0 20px; font-size: 14px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
   dialog form { display: flex; justify-content: flex-end; margin: 0; }
-  dialog .button { background: var(--ink); color: var(--paper-solid); box-shadow: none; min-width: 72px; }
-  @media (hover: hover) and (pointer: fine) { dialog .button:hover { background: #3d362e; } }
+  dialog .pill { background: var(--ink); color: var(--paper-solid); box-shadow: none; min-width: 72px; padding: 0 18px; transition: background-color 150ms ease, scale 150ms ease-out; }
+  dialog .pill:active { scale: 0.96; }
+  @media (hover: hover) and (pointer: fine) { dialog .pill:hover { background: #3d362e; } }
 
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   @media (prefers-reduced-motion: reduce) {
-    .button, .replay, .replay.shown { transition: none; }
-    .button:active, .replay:active { scale: 1; }
+    header > *, .cta, [data-film] header > *, [data-film="rest"] .cta, .replay, .replay.shown, dialog .pill, .endcard { transition: none; }
+    [data-film="rest"] header > *, .cta { translate: none; }
+    .button:active, .cta:active, .replay:active, dialog .pill:active { scale: 1; }
     dialog[open], dialog[open]::backdrop { animation: none; }
   }
 </style>
@@ -155,12 +189,16 @@
     <source src="media/week.mp4" type="video/mp4">
   </video>
 
+  <img class="endcard" src="media/end.jpg" alt="" aria-hidden="true">
+
   <header>
-    <a class="mark" href="./"><img src="media/icon.png" alt="" width="28" height="28">Weekfold</a>
-    <button class="button" id="download" type="button" data-i18n="download">Download</button>
+    <a class="pill mark" href="./"><img src="media/icon.png" alt="" width="28" height="28">Weekfold</a>
+    <button class="pill button download" type="button" data-i18n="download">Download</button>
   </header>
 
   <h1 class="sr" data-i18n="tagline">Weekfold: a quiet weekly reflection app for the Mac.</h1>
+
+  <button class="pill cta download" type="button" data-i18n="download">Download</button>
 
   <button class="replay" id="replay" type="button" aria-label="Play again" data-i18n-label="replay">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10a6.5 6.5 0 1 0 2-4.7"/><path d="M3.5 3.5v3.2h3.2"/></svg>
@@ -169,7 +207,7 @@
   <dialog id="soon" aria-labelledby="soon-title">
     <h2 id="soon-title" data-i18n="soonTitle">Coming in December</h2>
     <p data-i18n="soonBody">Weekfold for Mac is in a small private beta. The public release is planned for December.</p>
-    <form method="dialog"><button class="button" data-i18n="ok" autofocus>OK</button></form>
+    <form method="dialog"><button class="pill" data-i18n="ok" autofocus>OK</button></form>
   </dialog>
 
 <script>
@@ -188,24 +226,26 @@
     document.querySelectorAll("[data-i18n-label]").forEach(el => { el.setAttribute("aria-label", t[el.dataset.i18nLabel]); });
   }
 
+  const root = document.documentElement;
   const film = document.getElementById("film");
   const replay = document.getElementById("replay");
-  const resting = document.documentElement.dataset.film === "rest";
+  addEventListener("resize", placeCTA);
 
   // The film plays once and rests on its last frame; a loop would unfold the week again.
   function rest() {
-    document.documentElement.dataset.film = "rest";
+    root.dataset.film = "rest";
     film.poster = "media/end.jpg";
     replay.classList.add("shown");
   }
-  film.addEventListener("ended", () => replay.classList.add("shown"));
+  film.addEventListener("ended", rest);
   replay.addEventListener("click", () => {
     replay.classList.remove("shown");
+    root.dataset.film = "play";
     film.currentTime = 0;
     film.play().catch(rest);
   });
 
-  if (resting) {
+  if (root.dataset.film === "rest") {
     film.preload = "metadata";
     rest();
   } else {
@@ -214,7 +254,7 @@
   }
 
   const soon = document.getElementById("soon");
-  document.getElementById("download").addEventListener("click", () => soon.showModal());
+  document.querySelectorAll(".download").forEach(b => b.addEventListener("click", () => soon.showModal()));
   soon.addEventListener("click", e => { if (e.target === soon) soon.close(); });
 </script>
 </body>
