@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weekfold</title>
+<meta name="description" content="A quiet weekly reflection app for the Mac. Gather your week, look at it, and fold it. Everything stays on your Mac.">
+<meta name="theme-color" content="#e9dfcf">
+<meta property="og:title" content="Weekfold">
+<meta property="og:description" content="A quiet weekly reflection app for the Mac. Everything stays on your Mac.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hudsonrivercrossing.github.io/weekfold/">
+<meta property="og:image" content="https://hudsonrivercrossing.github.io/weekfold/media/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="media/apple-touch-icon.png">
+<link rel="preload" as="image" href="media/start.jpg">
+<style>
+  :root {
+    --ink: #2b2620;
+    --ink-2: #5d554b;
+    --paper: rgb(251 247 240 / 0.86);
+    --paper-solid: #fbf7f0;
+    --line: rgb(43 38 32 / 0.12);
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #e9dfcf;
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  .film {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    background: #e9dfcf url("media/start.jpg") center / cover no-repeat;
+    pointer-events: none;
+    user-select: none;
+  }
+  /* Tall screens: the week spans the whole frame, so show all of it on paper rather than crop the figure away. */
+  @media (max-aspect-ratio: 1/1) {
+    .film { object-fit: contain; background-image: none !important; }
+  }
+
+  header {
+    position: fixed;
+    top: max(20px, env(safe-area-inset-top));
+    left: max(20px, env(safe-area-inset-left));
+    right: max(20px, env(safe-area-inset-right));
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px;
+  }
+  .mark {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--ink); text-decoration: none;
+    font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
+    min-height: 36px; padding: 4px 14px 4px 4px;
+    background: var(--paper);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    box-shadow: 0 0 0 0.5px var(--line), 0 1px 2px rgb(43 38 32 / 0.08);
+    border-radius: 999px;
+  }
+  .mark:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .mark img { width: 28px; height: 28px; border-radius: 999px; display: block; }
+
+  .button {
+    appearance: none; border: 0; cursor: pointer;
+    font: inherit; font-size: 14px; font-weight: 500;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    box-shadow: 0 0 0 0.5px var(--line), 0 1px 2px rgb(43 38 32 / 0.08);
+    border-radius: 999px;
+    min-height: 36px; padding: 0 18px;
+    transition: scale 150ms ease-out, background-color 150ms ease;
+  }
+  .button:active { scale: 0.96; }
+  @media (hover: hover) and (pointer: fine) {
+    .button:hover { background: var(--paper-solid); }
+  }
+  .button:focus-visible, .replay:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  @media (pointer: coarse) { .button { min-height: 44px; } }
+
+  .replay {
+    position: fixed;
+    right: max(20px, env(safe-area-inset-right));
+    bottom: max(20px, env(safe-area-inset-bottom));
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    appearance: none; border: 0; cursor: pointer;
+    color: var(--ink-2);
+    background: var(--paper);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    box-shadow: 0 0 0 0.5px var(--line);
+    border-radius: 999px;
+    opacity: 0; visibility: hidden;
+    transition: opacity 200ms ease, visibility 0s linear 200ms;
+  }
+  .replay.shown { opacity: 1; visibility: visible; transition: opacity 200ms ease; }
+  .replay svg { width: 18px; height: 18px; }
+
+  dialog {
+    border: 0; padding: 24px 24px 20px;
+    width: min(340px, calc(100vw - 32px));
+    border-radius: 16px;
+    color: var(--ink);
+    background: var(--paper-solid);
+    box-shadow: 0 0 0 0.5px var(--line), 0 8px 24px rgb(43 38 32 / 0.14), 0 2px 6px rgb(43 38 32 / 0.08);
+    font-family: var(--font);
+  }
+  dialog::backdrop { background: rgb(43 38 32 / 0.18); }
+  dialog[open] { animation: open 200ms var(--ease-out); }
+  dialog[open]::backdrop { animation: fade 200ms var(--ease-out); }
+  @keyframes open { from { opacity: 0; transform: scale(0.96); } }
+  @keyframes fade { from { opacity: 0; } }
+  dialog h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  dialog p { margin: 0 0 20px; font-size: 14px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+  dialog form { display: flex; justify-content: flex-end; margin: 0; }
+  dialog .button { background: var(--ink); color: var(--paper-solid); box-shadow: none; min-width: 72px; }
+  @media (hover: hover) and (pointer: fine) { dialog .button:hover { background: #3d362e; } }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .button, .replay, .replay.shown { transition: none; }
+    .button:active { scale: 1; }
+    dialog[open], dialog[open]::backdrop { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <video class="film" id="film" muted playsinline preload="auto" poster="media/start.jpg" aria-hidden="true" disablepictureinpicture>
+    <source src="media/week.webm" type='video/webm; codecs="av01.0.05M.10"'>
+    <source src="media/week.mp4" type="video/mp4">
+  </video>
+
+  <header>
+    <a class="mark" href="./"><img src="media/icon.png" alt="" width="28" height="28">Weekfold</a>
+    <button class="button" id="download" type="button" data-i18n="download">Download</button>
+  </header>
+
+  <h1 class="sr" data-i18n="tagline">Weekfold: a quiet weekly reflection app for the Mac.</h1>
+
+  <button class="replay" id="replay" type="button" aria-label="Play again" data-i18n-label="replay">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10a6.5 6.5 0 1 0 2-4.7"/><path d="M3.5 3.5v3.2h3.2"/></svg>
+  </button>
+
+  <dialog id="soon" aria-labelledby="soon-title">
+    <h2 id="soon-title" data-i18n="soonTitle">Coming in December</h2>
+    <p data-i18n="soonBody">Weekfold for Mac is in a small private beta. The public release is planned for December.</p>
+    <form method="dialog"><button class="button" data-i18n="ok" autofocus>OK</button></form>
+  </dialog>
+
+<script>
+  const zh = /^zh/i.test(navigator.language || "");
+  if (zh) {
+    const t = {
+      download: "下载",
+      tagline: "Weekfold：Mac 上一个安静的每周回顾 app。",
+      replay: "再看一遍",
+      soonTitle: "12 月见",
+      soonBody: "Weekfold for Mac 正在小范围内测，公开版本计划在 12 月发布。",
+      ok: "好",
+    };
+    document.documentElement.lang = "zh-Hans";
+    document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t[el.dataset.i18n]; });
+    document.querySelectorAll("[data-i18n-label]").forEach(el => { el.setAttribute("aria-label", t[el.dataset.i18nLabel]); });
+  }
+
+  const film = document.getElementById("film");
+  const replay = document.getElementById("replay");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let seen = false;
+  try { seen = sessionStorage.getItem("wf.seen") === "1"; sessionStorage.setItem("wf.seen", "1"); } catch {}
+
+  // The film plays once and rests on its last frame; a loop would unfold the week again.
+  function rest() {
+    film.poster = "media/end.jpg";
+    film.style.backgroundImage = 'url("media/end.jpg")';
+    replay.classList.add("shown");
+  }
+  film.addEventListener("ended", () => replay.classList.add("shown"));
+  replay.addEventListener("click", () => {
+    replay.classList.remove("shown");
+    film.currentTime = 0;
+    film.play().catch(rest);
+  });
+
+  if (reduce || seen) {
+    film.removeAttribute("autoplay");
+    film.preload = "metadata";
+    rest();
+  } else {
+    film.play().catch(rest);
+  }
+
+  const soon = document.getElementById("soon");
+  document.getElementById("download").addEventListener("click", () => soon.showModal());
+  soon.addEventListener("click", e => { if (e.target === soon) soon.close(); });
+</script>
+</body>
+</html>
